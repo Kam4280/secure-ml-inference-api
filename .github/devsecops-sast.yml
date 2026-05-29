@@ -1,0 +1,50 @@
+name: "DevSecOps SAST & Container Security Pipeline"
+
+# Trigger the pipeline automatically on every push or pull request hitting the main branch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  security-audit:
+    name: "Static Analysis & Container Vulnerability Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Safely checkout the repository code
+      # Hardened: Pinning to actions/checkout v4.1.1 via its immutable commit SHA hash
+      - name: "Checkout Source Code"
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      # Step 2: Scan the repository filesystem for hardcoded secrets and dependency vulnerabilities
+      # Hardened: Pinning to aquasecurity/trivy-action v0.36.0 via its safe post-incident commit hash
+      - name: "Trivy Filesystem Scan (SAST & Vulnerabilities)"
+        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1' # Force the pipeline to FAIL if HIGH or CRITICAL issues are discovered
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      # Step 3: Compile our hardened Docker container locally inside the GitHub runner environment
+      - name: "Build Local Test Container Image"
+        run: |
+          docker build -t secure-ml-inference-api:${{ github.sha }} .
+
+      # Step 4: Run a full image vulnerability check on our compiled container before any staging push
+      - name: "Trivy Container Image Scan"
+        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        with:
+          scan-type: 'image'
+          image-ref: 'secure-ml-inference-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1' # Strict enforcement: Fail build if the container is insecure
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
