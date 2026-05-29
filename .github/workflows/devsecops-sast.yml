@@ -1,0 +1,43 @@
+name: "DevSecOps SAST & Container Security Pipeline"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  security-audit:
+    name: "Static Analysis & Container Vulnerability Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Source Code"
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      - name: "Trivy Filesystem Scan (SAST & Vulnerabilities)"
+        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: "Build Local Test Container Image"
+        run: |
+          docker build -t secure-ml-inference-api:${{ github.sha }} .
+
+      - name: "Trivy Container Image Scan"
+        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        with:
+          scan-type: 'image'
+          image-ref: 'secure-ml-inference-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
