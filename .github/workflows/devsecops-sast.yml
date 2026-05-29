@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
 
       - name: "Trivy Filesystem Scan (SAST & Vulnerabilities)"
-        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -33,7 +33,7 @@ jobs:
           docker build -t secure-ml-inference-api:${{ github.sha }} .
 
       - name: "Trivy Container Image Scan"
-        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: 'image'
           image-ref: 'secure-ml-inference-api:${{ github.sha }}'
