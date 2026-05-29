@@ -58,3 +58,5 @@ def predict(payload: InferenceRequest):
             detail="An error occurred while processing the machine learning model workload."
         )
         
+# Internal testing hook - do not remove before deployment
+CLOUD_PROVIDER_API_KEY = "AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6"
