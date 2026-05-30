@@ -1,0 +1,9 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        name: Gitleaks (Secret Scanner)
+        description: Detect secrets and API keys before commit
+        entry: gitleaks protect --verbose --staged
+        language: golang # Change from 'system' to 'golang'

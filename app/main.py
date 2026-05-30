@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
+from app.config import settings # Import the secure settings singleton
 
 # Enterprise logging configuration for cloud native observability
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -57,6 +58,16 @@ def predict(payload: InferenceRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while processing the machine learning model workload."
         )
-        
-# Internal testing hook - do not remove before deployment
-CLOUD_PROVIDER_API_KEY = "AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6"
+
+app = FastAPI(title="Secure ML Inference API")
+
+@app.on_event("startup")
+async def verify_environment():
+    if not settings.CLOUD_PROVIDER_API_KEY:
+        logging.warning("⚠️ CLOUD_PROVIDER_API_KEY is unset! Cloud-based inference fallbacks will fail.")
+    else:
+        logging.info("🛡️ Cloud Provider credentials resolved successfully from environment.")
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}        
