@@ -1,31 +1,40 @@
 # ==========================================
-# Phase 1: Base Runtime Environment
+# STAGE 1: COMPILATION & BUILD CONTEXT
 # ==========================================
-FROM python:3.11-slim
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+FROM python:3.11-slim AS builder
+
+WORKDIR /workspace
+
+# Install essential compilation tools cleanly
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Compile dependencies directly into a localized virtual environment
+RUN python -m venv /workspace/venv
+ENV PATH="/workspace/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ==========================================
+# STAGE 2: HARDENED RUNTIME DISTROLESS LAYER
+# ==========================================
+# Google's Distroless images contain ONLY your application and its runtime. 
+# They do NOT contain package managers (apt), shells (bash/sh), or debugging tools.
+FROM gcr.io/distroless/python3-debian12
+
 WORKDIR /app
 
-# ==========================================
-# Phase 2: Security Hardening & User Setup
-# ==========================================
-RUN groupadd --system appgroup && \
-    useradd --system --gid appgroup --create-home appuser
+# Safely copy the isolated dependencies from stage 1
+COPY --from=builder /workspace/venv /workspace/venv
+COPY ./app /app/app
 
-# ==========================================
-# Phase 3: Dependency Resolution & Layer Caching
-# ==========================================
-COPY app/requirements.txt .
+# Force runtime environment to prioritize our isolated execution layers
+ENV PATH="/workspace/venv/bin:$PATH"
+ENV PYTHONPATH="/workspace/venv/lib/python3.11/site-packages"
 
-# PATCH: Explicitly upgrading pip, setuptools, and wheel to remediate CVE-2026-24049 & CVE-2026-23949
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+EXPOSE 8080
 
-# ==========================================
-# Phase 4: Code Transfer & Privilege Revocation
-# ==========================================
-COPY app/ ./app
-RUN chown -R appuser:appgroup /app
-USER appuser
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run using the production Uvicorn engine directly out of our environment
+ENTRYPOINT ["/workspace/venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
