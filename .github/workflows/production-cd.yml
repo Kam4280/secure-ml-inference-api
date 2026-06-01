@@ -1,0 +1,33 @@
+name: Production ML Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ] # Triggers exclusively when code is merged into production
+
+permissions:
+  id-token: write # MANDATORY: Allows the runner to request an OIDC token from GitHub
+  contents: read  # Allows the runner to pull down your source code files
+
+jobs:
+  secure_delivery:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Pull down code to the runner
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # 2. Keyless OIDC Authentication Exchange with GCP
+      # This replaces the need for old, insecure service account JSON files
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # 3. Verify GCP Connectivity
+      # A simple sanity test to prove the runner can speak to your project
+      - name: Test Cloud Persona Identity
+        run: |
+          gcloud auth list
+          gcloud artifacts repositories list --project=shaghaghi-test --location=us-central1
+          
