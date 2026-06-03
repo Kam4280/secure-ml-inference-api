@@ -18,18 +18,21 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ==========================================
-# STAGE 2: HARDENED RUNTIME PATCHED LAYER
+# STAGE 2: HARDENED RUNTIME DISTROLESS/SLIM LAYER
 # ==========================================
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# REMEDIATION: This now runs in the actual runtime container layer being scanned
+# 1. Patch the base OS packages
 RUN apt-get update && \
     apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy the clean virtual environment from builder
+# 2. REMEDIATION CRITICAL: Upgrade the global image tools to patch CVE-2026-23949 & CVE-2026-24049
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# 3. Copy your clean application context
 COPY --from=builder /workspace/venv /workspace/venv
 COPY ./app /app/app
 
@@ -38,7 +41,7 @@ ENV PYTHONPATH="/workspace/venv/lib/python3.11/site-packages"
 
 EXPOSE 8080
 
-# Hardening Step: Emulate distroless security by running as a non-root user
+# Hardening Step: Run as non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
