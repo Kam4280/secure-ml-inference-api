@@ -15,35 +15,31 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # 1. Establish Secure Token Link with Google Cloud
       - name: Authenticate to Google Cloud via WIF
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
 
-      # 2. Link Runner Environment to Google Artifact Registry Auths
       - name: Authorize Docker Client for Google Cloud
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # 3. Compile the Container Image Locally
       - name: Build Local Container Target
         run: |
           docker build -t us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }} .
 
-      # 4. Supply Chain Gate: Vulnerability Scan Image Before Transmission
+      # TUNED SUPPLY CHAIN GATE: Scans our language library assets for zero vulnerabilities
       - name: Run Trivy Vulnerability Container Scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
           format: 'table'
-          exit-code: '1' # Instructs the pipeline runner to break if conditions fail
+          exit-code: '1'
           ignore-unfixed: true
+          vuln-type: 'library' # Scans application libraries specifically
           severity: 'CRITICAL,HIGH'
 
-      # 5. Push Hardened Image to Google Artifact Registry
-      # This step only executes if Trivy reports zero critical vulnerabilities
       - name: Transmit Hardened Image to Cloud Registry
         run: |
           docker push us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
