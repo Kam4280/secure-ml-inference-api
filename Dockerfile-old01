@@ -1,0 +1,47 @@
+# =====================================================================
+# STAGE 1: Builder (Temporary build environment)
+# =====================================================================
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# Install any OS dependencies required to compile your specific Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+# Install dependencies to the user directory (/root/.local)
+# This keeps them neatly self-contained for transport to the next stage
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+
+# =====================================================================
+# STAGE 2: Runner (Production runtime environment)
+# =====================================================================
+FROM python:3.11-slim AS runner
+
+WORKDIR /app
+
+# 1. Remediate OS Vulnerabilities (Pulls patches if Debian has released them)
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2. STRIP THE BASE IMAGE VULNERABILITIES
+# The official python image ships with these. We don't need them in production.
+RUN pip uninstall -y setuptools wheel pip
+
+# 3. Copy compiled Python packages from the Builder stage
+COPY --from=builder /root/.local /root/.local
+
+# 4. Copy your application source code
+COPY . /app
+
+# 5. Update Environment Pathing
+ENV PATH=/root/.local/bin:$PATH
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

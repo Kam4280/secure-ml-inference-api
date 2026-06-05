@@ -1,0 +1,38 @@
+name: Infrastructure Provisioning Pipeline
+
+on:
+  workflow_dispatch: # Allows you to trigger this manually from the GitHub UI actions panel
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform_provision:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform-manifests
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Initialization
+        run: terraform init
+
+      - name: Terraform Plan Verification
+        run: terraform plan
+
+      - name: Terraform Apply Infrastructure Build
+        run: terraform apply -auto-approve

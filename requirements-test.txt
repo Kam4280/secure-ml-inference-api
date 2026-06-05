@@ -1,0 +1,6 @@
+fastapi>=0.112.0
+uvicorn>=0.30.0
+pydantic-settings>=2.3.0
+starlette>=0.40.0
+wheel>=0.46.2
+jaraco.context>=6.1.0

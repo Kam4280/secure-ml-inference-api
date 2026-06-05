@@ -48,3 +48,13 @@ jobs:
           exit-code: '1' # Strict enforcement: Fail build if the container is insecure
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
+    # Step 5: Run Trivy vulnerability and secret scanner
+      - name: "Run Trivy vulnerability and secret scanner"
+        uses: aquasecurity/trivy-action@18f259c9da0292c000db4447479fc1bfdc1b3cb8
+        with:
+          scan-type: 'image'
+          image-ref: 'secure-ml-inference-api:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1' 
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'     

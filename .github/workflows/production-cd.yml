@@ -12,6 +12,9 @@ jobs:
   secure_delivery:
     runs-on: ubuntu-latest
     steps:
+      # ==========================================
+      # 1. AUTHENTICATION & HANDSHAKE
+      # ==========================================
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
@@ -25,11 +28,13 @@ jobs:
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
+      # ==========================================
+      # 2. CONTAINER SECURE COMPILATION & SCANS
+      # ==========================================
       - name: Build Local Container Target
         run: |
           docker build -t us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }} .
 
-      # TUNED SUPPLY CHAIN GATE: Scans our language library assets for zero vulnerabilities
       - name: Run Trivy Vulnerability Container Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -37,9 +42,85 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          vuln-type: 'library' # Scans application libraries specifically
+          vuln-type: 'library'
           severity: 'CRITICAL,HIGH'
 
       - name: Transmit Hardened Image to Cloud Registry
         run: |
           docker push us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
+
+      # ==========================================
+      # 3. CRYPTOGRAPHIC SIGNING WITH COSIGN
+      # ==========================================
+      - name: Install Cosign System Binary
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign Container Image
+        run: |
+          # Dynamically reconstruct the private key from the GitHub Vault
+          echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+          
+          # Execute image signing
+          cosign sign --key cosign.key us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+      # ==========================================
+      # 4. DEPLOYMENT EXECUTION: GOOGLE CLOUD RUN
+      # ==========================================
+      - name: Deploy Image to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: secure-ml-inference-api
+          image: us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
+          region: us-central1
+
+      # ==========================================
+      # 5. DEPLOYMENT EXECUTION: GOOGLE KUBERNETES ENGINE
+      # ==========================================
+      - name: Establish GKE Cluster Connectivity Context
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
+          location: us-central1
+          project_id: shaghaghi-test
+
+      - name: Inject Secure Kubernetes Manifest Objects
+        run: |
+          cat <<EOF > deployment.yaml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: secure-ml-inference-api
+            namespace: default
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: secure-ml-api
+            template:
+              metadata:
+                labels:
+                  app: secure-ml-api
+              spec:
+                containers:
+                - name: api
+                  image: us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
+                  ports:
+                  - containerPort: 8080
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: secure-ml-inference-service
+            namespace: default
+          spec:
+            type: LoadBalancer
+            ports:
+            - port: 80
+              targetPort: 8080
+            selector:
+              app: secure-ml-api
+          EOF
+          
+          kubectl apply -f deployment.yaml

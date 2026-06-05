@@ -1,0 +1,30 @@
+name: Production ML Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  secure_delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # UPDATED STEP: Test specifically against our allowed repository resource scope
+      - name: Test Cloud Persona Identity
+        run: |
+          gcloud auth list
+          gcloud artifacts repositories describe secure-ml-inference-registry \
+            --project=shaghaghi-test \
+            --location=us-central1
