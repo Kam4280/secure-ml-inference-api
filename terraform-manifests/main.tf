@@ -7,11 +7,6 @@ terraform {
   }
 }
 
-provider "google" {
-  project = "shaghaghi-test"
-  region  = "us-central1"
-}
-
 # ... keep all your existing resource blocks (GKE, Cloud Run, etc.) exactly as they were below ...
 
 # 1. Enable Required Cloud APIs Automatically
