@@ -42,8 +42,8 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
         
-        - name: Verify Model Integrity
-    run: |
-      # Verification Step: If this fails, the build stops here.
-      cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin
-      
+      - name: Verify Model Integrity
+        run: |
+          # Verification Step: If this fails, the build stops here.
+          cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin
+          
