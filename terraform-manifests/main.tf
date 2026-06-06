@@ -1,3 +1,19 @@
+terraform {
+  required_version = ">= 1.0"
+  
+  backend "gcs" {
+    bucket = "shaghaghi-test-tfstate" # The exact name of the bucket you created in Step 3A
+    prefix = "terraform/state"        # The folder path inside the bucket
+  }
+}
+
+provider "google" {
+  project = "shaghaghi-test"
+  region  = "us-central1"
+}
+
+# ... keep all your existing resource blocks (GKE, Cloud Run, etc.) exactly as they were below ...
+
 # 1. Enable Required Cloud APIs Automatically
 resource "google_project_service" "services" {
   for_each = toset([
