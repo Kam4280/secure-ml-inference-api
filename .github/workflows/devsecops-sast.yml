@@ -47,20 +47,20 @@ jobs:
 
       - name: "Extract Model Artifacts from Container"
         run: |
-          # Create a temporary, stopped container from the freshly built image
+          # Create a temporary container instance from the built image
           docker create --name temp_artifacts secure-ml-inference-api:${{ github.sha }}
           
           # Ensure the local app directory target exists on the runner host
           mkdir -p app
           
-          # Extract the weights and signature files from the container layer to the runner disk
-          docker cp temp_artifacts:/app/model_weights.bin ./app/model_weights.bin
-          docker cp temp_artifacts:/app/model_weights.bin.sig ./app/model_weights.bin.sig
+          # Copy the files using their exact nested container paths (/app/app/...)
+          docker cp temp_artifacts:/app/app/model_weights.bin ./app/model_weights.bin
+          docker cp temp_artifacts:/app/app/model_weights.bin.sig ./app/model_weights.bin.sig
           
-          # Clean up the temporary container safely
+          # Clean up the temporary container metadata
           docker rm temp_artifacts
 
       - name: Verify Model Integrity
         run: |
-          # Verification Step: Now that the files are extracted locally, this will succeed.
+          # Verification Step: If this fails, the build stops here.
           cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin
