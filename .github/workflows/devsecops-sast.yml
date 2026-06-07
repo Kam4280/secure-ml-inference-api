@@ -42,8 +42,10 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
         
+      - name: "Install Cosign System Binary"
+        uses: sigstore/cosign-installer@v4.1.2
+
       - name: Verify Model Integrity
         run: |
           # Verification Step: If this fails, the build stops here.
-          cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin
-          
+          cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin   
