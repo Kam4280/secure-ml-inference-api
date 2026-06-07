@@ -45,7 +45,22 @@ jobs:
       - name: "Install Cosign System Binary"
         uses: sigstore/cosign-installer@v4.1.2
 
+      - name: "Extract Model Artifacts from Container"
+        run: |
+          # Create a temporary, stopped container from the freshly built image
+          docker create --name temp_artifacts secure-ml-inference-api:${{ github.sha }}
+          
+          # Ensure the local app directory target exists on the runner host
+          mkdir -p app
+          
+          # Extract the weights and signature files from the container layer to the runner disk
+          docker cp temp_artifacts:/app/model_weights.bin ./app/model_weights.bin
+          docker cp temp_artifacts:/app/model_weights.bin.sig ./app/model_weights.bin.sig
+          
+          # Clean up the temporary container safely
+          docker rm temp_artifacts
+
       - name: Verify Model Integrity
         run: |
-          # Verification Step: If this fails, the build stops here.
-          cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin   
+          # Verification Step: Now that the files are extracted locally, this will succeed.
+          cosign verify-blob --key cosign.pub --signature app/model_weights.bin.sig app/model_weights.bin
