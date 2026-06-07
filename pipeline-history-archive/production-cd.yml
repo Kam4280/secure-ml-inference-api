@@ -3,6 +3,7 @@ name: Production ML Deployment Pipeline
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: # 👈 This line adds the manual "Run workflow" button to the UI!
 
 permissions:
   id-token: write
@@ -66,7 +67,17 @@ jobs:
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
 
       # ==========================================
-      # 4. DEPLOYMENT EXECUTION: GOOGLE KUBERNETES ENGINE
+      # 4. DEPLOYMENT EXECUTION: GOOGLE CLOUD RUN
+      # ==========================================
+      - name: Deploy Image to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: secure-ml-inference-api
+          image: us-central1-docker.pkg.dev/shaghaghi-test/secure-ml-inference-registry/api:${{ github.sha }}
+          region: us-central1
+
+      # ==========================================
+      # 5. DEPLOYMENT EXECUTION: GOOGLE KUBERNETES ENGINE
       # ==========================================
       - name: Establish GKE Cluster Connectivity Context
         uses: google-github-actions/get-gke-credentials@v2
